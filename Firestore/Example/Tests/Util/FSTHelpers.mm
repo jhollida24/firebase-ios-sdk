@@ -16,10 +16,10 @@
 
 #import "Firestore/Example/Tests/Util/FSTHelpers.h"
 
+#import <FirebaseFirestore/FIRFieldValue.h>
 #import <FirebaseFirestore/FIRGeoPoint.h>
 
 #include <set>
-#include <utility>
 
 #import "Firestore/Source/API/FSTUserDataConverter.h"
 
@@ -29,6 +29,9 @@
 #include "Firestore/core/src/model/resource_path.h"
 #include "Firestore/core/src/model/set_mutation.h"
 
+#import <Firestore/core/test/unit/testutil/testutil.h>
+
+namespace testutil = firebase::firestore::testutil;
 namespace util = firebase::firestore::util;
 
 using firebase::firestore::core::ParsedSetData;
@@ -131,26 +134,22 @@ SetMutation FSTTestSetMutation(NSString *path, NSDictionary<NSString *, id> *val
 PatchMutation FSTTestPatchMutation(NSString *path,
                                    NSDictionary<NSString *, id> *values,
                                    const std::vector<FieldPath> &updateMask) {
-  BOOL merge = !updateMask.empty();
+  // Replace '<DELETE>' sentinel from JSON.
+  NSMutableDictionary *mutableValues = [values mutableCopy];
+  [mutableValues enumerateKeysAndObjectsUsingBlock:^(NSString *key, id value, BOOL *) {
+    if ([value isEqual:kDeleteSentinel]) {
+      const FieldPath fieldPath = testutil::Field(util::MakeString(key));
+      mutableValues[key] = [FIRFieldValue fieldValueForDelete];
+    }
+  }];
 
   FSTUserDataConverter *converter = FSTTestUserDataConverter();
-  ParsedUpdateData parsed = [converter parsedUpdateData:values];
-
-  //  __block ObjectValue objectValue = ObjectValue::Empty();
-  //  __block std::set<FieldPath> fieldMaskPaths;
-  //  [values enumerateKeysAndObjectsUsingBlock:^(NSString *key, id value, BOOL *) {
-  //    const FieldPath path = testutil::Field(key);
-  //    fieldMaskPaths.insert(path);
-  //    if (![value isEqual:kDeleteSentinel]) {
-  //      FieldValue parsedValue = FSTTestFieldValue(value);
-  //      objectValue = objectValue.Set(path, std::move(parsedValue));
-  //    }
-  //  }];
+  ParsedUpdateData parsed = [converter parsedUpdateData:mutableValues];
 
   DocumentKey key = FSTTestDocKey(path);
+
+  BOOL merge = !updateMask.empty();
   Precondition precondition = merge ? Precondition::None() : Precondition::Exists(true);
-  //  FieldMask mask(merge ? std::set<FieldPath>(updateMask.begin(), updateMask.end())
-  //                       : fieldMaskPaths);
   return PatchMutation(key, parsed.data(), parsed.fieldMask(), precondition,
                        parsed.field_transforms());
 }

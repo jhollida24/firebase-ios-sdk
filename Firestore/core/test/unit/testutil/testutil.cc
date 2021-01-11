@@ -370,6 +370,9 @@ model::PatchMutation PatchMutationHelper(
     const FieldValue& value = kv.second;
     if (!value.is_string() || value.string_value() != kDeleteSentinel) {
       object_value = object_value.Set(field_path, value);
+    } else if (value.string_value() == kDeleteSentinel) {
+      object_value =
+          object_value.Set(field_path, object_value.Delete(field_path));
     }
   }
 
