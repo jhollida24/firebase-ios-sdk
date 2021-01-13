@@ -591,11 +591,9 @@ google_firestore_v1_Write Serializer::EncodeMutation(
   result.update_transforms =
       MakeArray<google_firestore_v1_DocumentTransform_FieldTransform>(count);
   int i = 0;
-  auto crazy = mutation.field_transforms();
-  auto crazy2 = mutation.key();
   for (const FieldTransform& field_transform : mutation.field_transforms()) {
     result.update_transforms[i] = EncodeFieldTransform(field_transform);
-    i++;
+    ++i;
   }
 
   switch (mutation.type()) {
